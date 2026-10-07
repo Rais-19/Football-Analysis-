@@ -1,9 +1,11 @@
-roboflow
+opencv-python
+numpy
 ultralytics
+supervision
 torch
 torchvision
 torchaudio
-supervision
-matplotlib
-scikit-learn
 pandas
+scikit-learn
+roboflow
+matplotlib

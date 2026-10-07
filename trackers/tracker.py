@@ -5,7 +5,7 @@ import os
 import cv2
 import pandas as pd 
 import numpy as np
-from utils import get_center_of_bbox, get_bbox_width, get_foot_position
+from utils import get_center_of_bbox, get_bbox_width, get_foot_position,measure_distance
 class Tracker():
     def __init__(self,model_path):
         self.model = YOLO(model_path)
@@ -78,17 +78,42 @@ class Tracker():
                 elif cls_id==cls_names_inv['referee']:
                     tracks["refrees"][frame_num][track_id]={"bbox":bbox}
            
+            #ball detection:keep the highest confidence ball detection per frame (the real ball is usually detected with higher confidence than a static white dot like the penalty spot):
+            best_ball_conf = -1
             for frame_detection in detection_supervision:
-                bbox=frame_detection[0].tolist()
-                cls_id=frame_detection[3]
-                if cls_id==cls_names_inv['ball']:
-                    tracks["ball"][frame_num][1]={"bbox":bbox} 
+                bbox = frame_detection[0].tolist()
+                cls_id = frame_detection[3]
+                conf = frame_detection[2]  # confidence score
+                if cls_id == cls_names_inv['ball']:
+                    if conf > best_ball_conf:
+                        best_ball_conf = conf
+                        tracks["ball"][frame_num][1] = {"bbox": bbox}
         
         if stub_path is not None and read_from_stub==False:
             with open(stub_path,'wb') as f:
                 pickle.dump(tracks,f)
         return tracks
-
+    def remove_wrong_ball_detections(self, ball_positions, max_distance=25):
+        last_good_position = None
+        last_good_frame = -1
+        for i in range(len(ball_positions)):
+            current_box = ball_positions[i].get(1, {}).get('bbox', [])
+            if len(current_box) == 0:
+                continue
+            if last_good_position is None:
+                last_good_position = current_box
+                last_good_frame = i
+                continue
+            current_center = get_center_of_bbox(current_box)
+            last_center = get_center_of_bbox(last_good_position)
+            distance = measure_distance(current_center, last_center)
+            max_allowed = max_distance * (i - last_good_frame)  # allow more distance over bigger gaps
+            if distance > max_allowed:
+                ball_positions[i] = {}  # reject — treat as missing, will get interpolated
+            else:
+                last_good_position = current_box
+                last_good_frame = i
+        return ball_positions
     def draw_ellipse(self, frame, bbox, color, track_id=None):
         y2 = int(bbox[3])
         x_center, _ = get_center_of_bbox(bbox)

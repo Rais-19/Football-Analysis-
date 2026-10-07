@@ -3,7 +3,7 @@ sys.path.append('../')
 from utils import get_center_of_bbox,measure_distance
 class PlayerBallAssigner:
     def  __init__(self):
-        self.max_player_ball_distance=70 # anything above 70 ball won't be assigned to any player   
+        self.max_player_ball_distance=50 # anything above 50 ball won't be assigned to any player   
     def assign_ball_to_player(self,players,ball_bbox):
         ball_position=get_center_of_bbox(ball_bbox)  
         
